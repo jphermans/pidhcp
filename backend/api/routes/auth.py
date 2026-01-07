@@ -55,26 +55,44 @@ async def login(
     auth_service = Depends(get_auth_service)
 ):
     """Authenticate user and return access token."""
-    user = auth_service.authenticate_user(request.username, request.password)
+    logger.info(f"Login attempt for user: {request.username}")
+
+    try:
+        user = auth_service.authenticate_user(request.username, request.password)
+    except Exception as e:
+        logger.error(f"Authentication error: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Authentication error: {str(e)}"
+        )
+
     if not user:
+        logger.warning(f"Authentication failed for user: {request.username}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    access_token_expires = timedelta(minutes=auth_service.access_token_expire_minutes)
-    access_token = auth_service.create_access_token(
-        data={"sub": user["username"]},
-        expires_delta=access_token_expires
-    )
+    try:
+        access_token_expires = timedelta(minutes=auth_service.access_token_expire_minutes)
+        access_token = auth_service.create_access_token(
+            data={"sub": user["username"]},
+            expires_delta=access_token_expires
+        )
 
-    logger.info(f"User logged in: {user['username']}")
+        logger.info(f"User logged in: {user['username']}")
 
-    return LoginResponse(
-        access_token=access_token,
-        username=user["username"]
-    )
+        return LoginResponse(
+            access_token=access_token,
+            username=user["username"]
+        )
+    except Exception as e:
+        logger.error(f"Token creation error: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Token creation error: {str(e)}"
+        )
 
 
 @router.post("/change-password")
