@@ -82,7 +82,7 @@ sudo apt update && sudo apt upgrade -y
 
 ```bash
 cd ~
-git clone https://github.com/yourusername/pi-router.git
+git clone https://github.com/jphermans/pidhcp.git
 cd pi-router
 ```
 
@@ -518,7 +518,7 @@ MIT License - JPHsystems 2026
 ## Support
 
 For issues and feature requests, please visit:
-https://github.com/yourusername/pi-router/issues
+https://github.com/jphermans/pidhcp/issues
 
 ---
 
