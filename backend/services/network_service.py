@@ -3,6 +3,7 @@
 import subprocess
 import logging
 import asyncio
+import os
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 import re
@@ -21,7 +22,9 @@ class NetworkService:
     NF_TABLES_CONF = "/etc/nftables.d/pi-router.nft"
     SYSCTL_CONF = "/etc/sysctl.d/99-pi-router-forwarding.conf"
 
-    def __init__(self, config_dir: str = "/etc/pi-router"):
+    def __init__(self, config_dir: str = None):
+        if config_dir is None:
+            config_dir = os.environ.get('CONFIG_DIR', '/config')
         self.config_dir = Path(config_dir)
         self.config_dir.mkdir(parents=True, exist_ok=True)
 

@@ -16,8 +16,14 @@ logger = logging.getLogger(__name__)
 class BackupService:
     """Service for creating and managing backups with multiple storage backends."""
 
-    def __init__(self, data_dir: str = "/var/lib/pi-router/data"):
+    def __init__(self, data_dir: str = None, config_dir: str = None):
+        if data_dir is None:
+            data_dir = os.environ.get('STATE_DIR', '/data')
+        if config_dir is None:
+            config_dir = os.environ.get('CONFIG_DIR', '/config')
+
         self.data_dir = Path(data_dir)
+        self.config_dir = Path(config_dir)
         self.backup_dir = self.data_dir / "backups"
         self.backup_dir.mkdir(parents=True, exist_ok=True)
         self.db_path = self.data_dir / "pi-router.db"
@@ -34,13 +40,12 @@ class BackupService:
         if self.db_path.exists():
             shutil.copy2(self.db_path, backup_path / "pi-router.db")
 
-        # Backup configuration from /etc/pi-router
+        # Backup configuration from config dir
         config_dir = backup_path / "config"
         config_dir.mkdir(exist_ok=True)
 
-        etc_config = Path("/etc/pi-router")
-        if etc_config.exists():
-            for file in etc_config.iterdir():
+        if self.config_dir.exists():
+            for file in self.config_dir.iterdir():
                 if file.is_file():
                     shutil.copy2(file, config_dir / file.name)
 
@@ -88,12 +93,11 @@ class BackupService:
         # Restore configuration
         config_backup = backup_path / "config"
         if config_backup.exists():
-            etc_config = Path("/etc/pi-router")
-            etc_config.mkdir(parents=True, exist_ok=True)
+            self.config_dir.mkdir(parents=True, exist_ok=True)
 
             for file in config_backup.iterdir():
                 if file.is_file():
-                    shutil.copy2(file, etc_config / file.name)
+                    shutil.copy2(file, self.config_dir / file.name)
 
         logger.info(f"Backup restored: {backup_path}")
 

@@ -1,5 +1,6 @@
 """Configuration data models."""
 
+import os
 from pydantic import BaseModel, Field, validator
 from typing import Optional, Literal
 import re
@@ -102,5 +103,5 @@ class AppConfig(BaseModel):
     log_level: str = Field(default="INFO", description="Logging level")
     host: str = Field(default="0.0.0.0", description="Server bind address")
     port: int = Field(default=8080, description="Server port")
-    config_dir: str = Field(default="/etc/pi-router", description="Configuration directory")
-    state_dir: str = Field(default="/var/lib/pi-router", description="State directory")
+    config_dir: str = Field(default_factory=lambda: os.environ.get('CONFIG_DIR', '/config'), description="Configuration directory")
+    state_dir: str = Field(default_factory=lambda: os.environ.get('STATE_DIR', '/data'), description="State directory")
