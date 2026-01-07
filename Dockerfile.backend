@@ -48,11 +48,12 @@ COPY backend/ .
 # Create directories for data and config
 RUN mkdir -p /data /config
 
-# Create a non-root user
+# Create a non-root user for data ownership
 RUN useradd -m -u 1000 -s /bin/bash pi-router && \
     chown -R pi-router:pi-router /app /data /config
 
-USER pi-router
+# Run as root since we need to manage network config (iptables, nftables, hostapd, etc.)
+# In a router application, root access is required for network operations
 
 # Expose port
 EXPOSE 8080

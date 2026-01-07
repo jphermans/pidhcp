@@ -143,6 +143,13 @@ The project will be installed in the following locations:
 /usr/local/sbin/pi-router-save-nftables
 ```
 
+#### Optional Files (created by fix-wlan1.sh script)
+```
+/etc/NetworkManager/conf.d/unmanaged.conf  # Prevents NetworkManager from managing wlan1
+/etc/udev/rules.d/90-nm-unmanage-wlan1.rules  # Udev rule to unmanage wlan1
+/etc/dhcpcd.conf.backup-*  # Backups of dhcpcd.conf before modifications
+```
+
 #### Application Files
 ```
 /opt/pi-router/ (entire directory tree)
@@ -154,11 +161,38 @@ The project will be installed in the following locations:
 ### Modified System Files
 
 #### 1. `/etc/dhcpcd.conf`
-**Added line:**
+**Added by installer or fix-wlan1.sh script:**
 ```
+# Pi Router - wlan1 configuration
+# Prevent dhcpcd from managing wlan1 (AP interface)
 denyinterfaces wlan1
+
+# Explicitly allow wlan0 as the only managed WiFi interface
+allowinterfaces wlan0
+
+# Set routing metrics to ensure wlan0 is always preferred
+interface wlan0
+metric 100  # Lower metric = higher priority (default route)
+
+# wlan1 should never get a default route
+interface wlan1
+metric 200  # Higher metric = lower priority
+nooption routers
 ```
-**Purpose:** Prevents dhcpcd from managing wlan1 (we want static IP for AP)
+**Purpose:**
+- Prevents dhcpcd from managing wlan1 (we want static IP for AP)
+- Ensures only wlan0 gets DHCP configuration
+- Sets routing metrics to prioritize wlan0 as the upstream interface
+- Prevents wlan1 from ever becoming the default route (internet connection)
+- **Backup:** The installer/fix script backs up the original file before modifications
+
+**Understanding the Configuration:**
+- **denyinterfaces wlan1**: DHCP client will never request an IP for wlan1
+- **allowinterfaces wlan0**: Only wlan0 is managed by DHCP client
+- **metric 100/200**: Lower metric values have higher priority for routing
+- **nooption routers**: Prevents wlan1 from receiving a default gateway
+
+This ensures wlan0 is always the preferred upstream connection and wlan1 can never accidentally become the internet connection.
 
 #### 2. `/etc/wpa_supplicant/wpa_supplicant-wlan0.conf`
 **Created/Maintained by:** Web UI

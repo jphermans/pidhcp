@@ -78,6 +78,20 @@ async def lifespan(app: FastAPI):
 
     logger.info("Services initialized")
 
+    # Setup NAT and IP forwarding on startup (required for wlan1 clients to access internet)
+    logger.info("Setting up NAT and IP forwarding...")
+    nat_success, nat_msg = await network_service.enable_ip_forwarding()
+    if nat_success:
+        logger.info("IP forwarding enabled")
+    else:
+        logger.warning(f"Failed to enable IP forwarding: {nat_msg}")
+
+    nat_success, nat_msg = await network_service.setup_nat()
+    if nat_success:
+        logger.info("NAT rules configured")
+    else:
+        logger.warning(f"Failed to setup NAT: {nat_msg}")
+
     yield
 
     logger.info("Shutting down Pi Router API...")

@@ -429,24 +429,38 @@ network={{
         async with aiofiles.open(temp_file, 'w') as f:
             await f.write(config_content)
 
-        # Load nftables rules
-        success, _, err = await self.run_command([
-            "sudo", "nft", "-f", str(temp_file)
+        # In Docker, we can run nft directly (container is privileged)
+        # Try without sudo first (for Docker)
+        success, stdout, err = await self.run_command([
+            "nft", "-f", str(temp_file)
         ])
+
+        # If that fails, try with sudo (for bare metal)
+        if not success and "sudo" not in str(err):
+            success, stdout, err = await self.run_command([
+                "sudo", "nft", "-f", str(temp_file)
+            ])
 
         if not success:
             return False, f"Failed to load nftables rules: {err}"
 
-        # Save for persistence
-        success, _, err = await self.run_command([
-            "sudo", "/usr/local/sbin/pi-router-save-nftables",
-            str(temp_file)
+        # Also set up iptables-compatible masquerade rule for Docker compatibility
+        # This ensures masquerade works even if nftables rules get flushed
+        success_iptables, _, err_iptables = await self.run_command([
+            "iptables", "-t", "nat", "-C", "POSTROUTING", "-s", "10.42.0.0/24", "-o", "wlan0", "-j", "MASQUERADE"
         ])
 
-        if success:
-            return True, "NAT rules configured successfully"
-        else:
-            return False, f"Failed to save nftables config: {err}"
+        # If rule doesn't exist, add it
+        if not success_iptables:
+            success_add, _, err_add = await self.run_command([
+                "iptables", "-t", "nat", "-A", "POSTROUTING", "-s", "10.42.0.0/24", "-o", "wlan0", "-j", "MASQUERADE"
+            ])
+            if not success_add:
+                logger.warning(f"Failed to add iptables masquerade rule: {err_add}")
+            else:
+                logger.info("Added iptables masquerade rule for 10.42.0.0/24")
+
+        return True, "NAT rules configured successfully"
 
     async def ensure_wlan1_ap_mode(self) -> Tuple[bool, str]:
         """Ensure wlan1 is in AP mode and not managed by wpa_supplicant."""

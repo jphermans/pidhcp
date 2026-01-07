@@ -414,9 +414,16 @@ sudo ./scripts/fix-wlan1.sh
 
 This script will:
 - Disable wpa_supplicant@wlan1 service
-- Configure NetworkManager to ignore wlan1
+- Configure NetworkManager to ignore wlan1 (creates both udev rule and config file)
+- Configure dhcpcd to deny wlan1 and set routing metrics
+  - `denyinterfaces wlan1` - prevents DHCP client on wlan1
+  - `allowinterfaces wlan0` - only wlan0 gets DHCP
+  - `metric 100` for wlan0 (higher priority for default route)
+  - `metric 200` for wlan1 (lower priority)
+  - `nooption routers` for wlan1 (prevents default route)
 - Ensure hostapd is running
 - Restart services to restore AP mode
+- Backup dhcpcd.conf before modifications
 
 **Via Web UI:**
 1. Go to Settings tab
@@ -436,6 +443,12 @@ sudo systemctl restart hostapd
 sudo iwconfig wlan1
 # Should show: Mode:Master
 ```
+
+**Understanding Routing Metrics:**
+The system now uses routing metrics to ensure wlan0 is always the preferred upstream interface:
+- **wlan0 (metric 100)**: Lower metric = higher priority for default routes
+- **wlan1 (metric 200)**: Higher metric = lower priority (never becomes default route)
+- This prevents wlan1 from accidentally becoming the internet connection
 
 ### Installation Without wlan1 (Auto-Activation Feature)
 
