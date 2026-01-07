@@ -3,7 +3,8 @@ uvicorn[standard]==0.32.0
 pydantic==2.9.2
 pydantic-settings==2.6.0
 python-multipart==0.0.12
-passlib[bcrypt]==1.7.4
+passlib==1.7.4
+bcrypt==3.2.2
 python-jose[cryptography]==3.3.0
 aiofiles==24.1.0
 psutil==6.1.0
