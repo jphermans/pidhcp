@@ -84,6 +84,9 @@ class ConfigManager:
         try:
             with open(self.app_config_file, 'r') as f:
                 data = yaml.safe_load(f)
+                # If secret key was redacted, restore default
+                if data.get('secret_key') == "***CHANGE_THIS***":
+                    data['secret_key'] = "CHANGE_THIS_SECRET_KEY_IN_PRODUCTION"
                 return AppConfig(**data)
         except Exception as e:
             logger.error(f"Failed to load app config: {e}")
