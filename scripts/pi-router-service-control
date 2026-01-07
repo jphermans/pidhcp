@@ -1,0 +1,37 @@
+#!/bin/bash
+#
+# Pi Router - Service control helper script
+# This script is called via sudo by the web application
+#
+
+set -e
+
+# Check arguments
+if [ $# -lt 1 ]; then
+    echo "Usage: $0 <action> [service]"
+    echo "Actions: start, stop, restart, status, enable, disable"
+    echo "Service (optional): pi-router (default), hostapd, dnsmasq, wpa_supplicant@wlan0"
+    exit 1
+fi
+
+ACTION="$1"
+SERVICE="${2:-pi-router}"
+
+# Validate action
+case "$ACTION" in
+    start|stop|restart|status|enable|disable)
+        ;;
+    *)
+        echo "Error: Invalid action '$ACTION'"
+        echo "Valid actions: start, stop, restart, status, enable, disable"
+        exit 1
+        ;;
+esac
+
+# Execute the action
+if [ "$ACTION" = "status" ]; then
+    systemctl status "$SERVICE"
+else
+    systemctl "$ACTION" "$SERVICE"
+    echo "Service $SERVICE: $ACTION completed successfully"
+fi
