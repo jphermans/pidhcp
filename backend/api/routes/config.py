@@ -8,7 +8,7 @@ from config.manager import ConfigManager
 from config.models import NetworkConfig, UplinkConfig, APConfig, DHCPConfig
 from services.network_service import NetworkService
 from services.auth_service import AuthService
-from main import config_manager, network_service, auth_service
+from main import get_config_manager, network_service, auth_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

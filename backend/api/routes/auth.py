@@ -6,8 +6,8 @@ from pydantic import BaseModel
 from datetime import timedelta
 import logging
 
-from services.auth_service import AuthService
-from main import auth_service
+# Import dependency functions
+from main import get_auth_service, get_config_manager
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

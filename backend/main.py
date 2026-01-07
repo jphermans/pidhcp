@@ -2,7 +2,7 @@
 
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Request, status, Depends
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,7 +13,6 @@ from services.auth_service import AuthService
 from services.network_service import NetworkService
 from services.system_service import SystemService
 from database.db import Database
-from api.routes import auth, status, config, services, portal, backup
 
 # Configure logging
 logging.basicConfig(
@@ -28,6 +27,32 @@ auth_service = None
 network_service = None
 system_service = None
 database = None
+
+
+# Dependency functions for FastAPI
+def get_config_manager():
+    """Get config manager instance."""
+    return config_manager
+
+
+def get_auth_service():
+    """Get auth service instance."""
+    return auth_service
+
+
+def get_network_service():
+    """Get network service instance."""
+    return network_service
+
+
+def get_system_service():
+    """Get system service instance."""
+    return system_service
+
+
+def get_database():
+    """Get database instance."""
+    return database
 
 
 @asynccontextmanager
@@ -84,6 +109,10 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"error": "Internal server error", "detail": str(exc)}
     )
 
+
+# Import routes after app creation to avoid circular imports
+# Import here and include routers
+from api.routes import auth, status, config, services, portal, backup
 
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])

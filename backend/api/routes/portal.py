@@ -7,7 +7,7 @@ import logging
 
 from services.portal_service import PortalService
 from services.auth_service import AuthService
-from main import auth_service
+from main import get_auth_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

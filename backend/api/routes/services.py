@@ -8,7 +8,7 @@ import asyncio
 from services.network_service import NetworkService
 from services.system_service import SystemService
 from services.auth_service import AuthService
-from main import network_service, system_service, auth_service
+from main import get_network_service, system_service, auth_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
