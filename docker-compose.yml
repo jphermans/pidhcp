@@ -51,10 +51,8 @@ services:
       dockerfile: Dockerfile.frontend
     container_name: pi-router-frontend
     restart: unless-stopped
-    ports:
-      - "80:80"
-      # Alternative port if 80 is in use
-      # - "8080:80"
+    # Use host network to communicate with backend (which needs host network for WiFi)
+    network_mode: host
     depends_on:
       backend:
         condition: service_healthy
