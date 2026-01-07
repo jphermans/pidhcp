@@ -106,7 +106,7 @@ apt-get install -y \
     curl \
     iw \
     net-tools \
-    wpa_supplicant
+    wpasupplicant
 
 print_success "System dependencies installed"
 echo ""
