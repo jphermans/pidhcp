@@ -7,7 +7,7 @@ from datetime import timedelta
 import logging
 
 # Import dependency functions
-from main import get_auth_service, get_config_manager
+from main import get_auth_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -33,7 +33,10 @@ class PasswordChangeRequest(BaseModel):
     new_password: str
 
 
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    auth_service = Depends(get_auth_service)
+) -> str:
     """Get the current authenticated user."""
     token = credentials.credentials
     username = auth_service.verify_token(token)
@@ -47,7 +50,10 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
 
 
 @router.post("/login", response_model=LoginResponse)
-async def login(request: LoginRequest):
+async def login(
+    request: LoginRequest,
+    auth_service = Depends(get_auth_service)
+):
     """Authenticate user and return access token."""
     user = auth_service.authenticate_user(request.username, request.password)
     if not user:
@@ -74,7 +80,8 @@ async def login(request: LoginRequest):
 @router.post("/change-password")
 async def change_password(
     request: PasswordChangeRequest,
-    current_user: str = Depends(get_current_user)
+    current_user: str = Depends(get_current_user),
+    auth_service = Depends(get_auth_service)
 ):
     """Change current user's password."""
     # Verify current password
