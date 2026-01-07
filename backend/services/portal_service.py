@@ -227,7 +227,7 @@ class PortalService:
                     method,
                     action_url,
                     data=form_data if method == "POST" else None,
-                    params(form_data) if method == "GET" else None,
+                    params=form_data if method == "GET" else None,
                     timeout=aiohttp.ClientTimeout(total=15),
                     headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"},
                     allow_redirects=True
