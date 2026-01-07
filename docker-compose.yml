@@ -53,6 +53,8 @@ services:
     restart: unless-stopped
     # Use host network to communicate with backend (which needs host network for WiFi)
     network_mode: host
+    # Privileged mode needed to bind to port 80 with host networking
+    privileged: true
     depends_on:
       backend:
         condition: service_healthy
