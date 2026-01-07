@@ -3,6 +3,7 @@
 import aiosqlite
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
@@ -13,7 +14,11 @@ logger = logging.getLogger(__name__)
 class Database:
     """SQLite database for storing configuration and state."""
 
-    def __init__(self, db_path: str = "/var/lib/pi-router/data/pi-router.db"):
+    def __init__(self, db_path: str = None):
+        if db_path is None:
+            # Use STATE_DIR environment variable if set, otherwise use /data
+            state_dir = os.environ.get('STATE_DIR', '/data')
+            db_path = f"{state_dir}/pi-router.db"
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
