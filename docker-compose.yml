@@ -1,8 +1,6 @@
 # Pi Router Docker Compose Configuration
 # Complete WiFi router system in containers
 
-version: '3.8'
-
 services:
   # Backend API Service - FastAPI backend with WiFi management
   backend:
