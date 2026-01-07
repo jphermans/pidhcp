@@ -68,6 +68,31 @@ Turn your Raspberry Pi 5 into a full-featured Wi-Fi router with a modern web int
 > 2. The hostapd service is running: `sudo systemctl status hostapd`
 > 3. The wlan1 interface exists: `ip link show wlan1`
 
+### Required System Packages
+
+The installer will automatically install all necessary packages. Here's the complete list for reference:
+
+| Package | Purpose |
+|---------|---------|
+| `hostapd` | Access Point daemon - creates the Wi-Fi AP on wlan1 |
+| `dnsmasq` | DHCP and DNS server - assigns IPs to connected devices |
+| `nftables` | Firewall/NAT - routes traffic from wlan1 to wlan0 |
+| `wpasupplicant` | Wi-Fi client - connects wlan0 to existing networks |
+| `python3` | Backend runtime - runs the FastAPI web application |
+| `python3-pip` | Python package manager |
+| `python3-venv` | Virtual environment support |
+| `python3-dev` | Python development headers |
+| `gcc` | C compiler - for building Python packages |
+| `iw` | Wireless configuration tool |
+| `wireless-tools` | Additional wireless tools (iwconfig, etc.) |
+| `net-tools` | Network utilities (netstat, etc.) |
+| `network-manager` | Network management (optional, for troubleshooting) |
+| `udev` | Device management - for auto-detecting wlan1 |
+| `git` | Version control - for cloning and updating |
+| `curl` | HTTP client - for downloading files |
+
+**Note:** All packages are automatically installed by the installation script. You don't need to install them manually.
+
 ### Installation
 
 #### Step 1: Prepare Your Pi
@@ -278,6 +303,33 @@ sudo /usr/local/sbin/pi-router-init-wlan1
 **Check auto-activation service:**
 ```bash
 sudo systemctl status pi-router-wait-wlan1
+```
+
+### Missing Required Packages
+
+If you get errors about missing commands or services, some packages might not be installed.
+
+**Check if packages are installed:**
+```bash
+# Check key packages
+dpkg -l | grep -E "hostapd|dnsmasq|nftables|wpasupplicant|python3"
+
+# Check if commands are available
+which hostapd dnsmasq nft iw iwconfig nmcli
+```
+
+**Install missing packages manually:**
+```bash
+sudo apt update
+sudo apt install -y hostapd dnsmasq nftables wpasupplicant \
+    python3 python3-pip python3-venv python3-dev gcc \
+    iw wireless-tools net-tools network-manager udev
+```
+
+**Re-run the installer if needed:**
+```bash
+cd ~/pidhcp
+sudo ./scripts/install.sh
 ```
 
 ### Critical Warning Banner in Web UI (wlan1 Not Available)

@@ -105,8 +105,11 @@ apt-get install -y \
     git \
     curl \
     iw \
+    wireless-tools \
     net-tools \
-    wpasupplicant
+    wpasupplicant \
+    network-manager \
+    udev
 
 print_success "System dependencies installed"
 echo ""
@@ -116,6 +119,9 @@ print_info "  • dnsmasq - DHCP/DNS server"
 print_info "  • nftables - Firewall/NAT"
 print_info "  • python3 - Backend runtime"
 print_info "  • wpa_supplicant - Wi-Fi client"
+print_info "  • iw/wireless-tools - Wireless configuration"
+print_info "  • network-manager - Network management (optional)"
+print_info "  • udev - Device management (for auto-detection)"
 
 # Step 3: Configure network interfaces
 print_header "${ICON_NETWORK} STEP 3/9: Configuring Network Interfaces"

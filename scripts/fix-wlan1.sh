@@ -36,6 +36,22 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
+# Check for required commands
+MISSING_CMDS=()
+for cmd in systemctl udevadm iwconfig ip grep; do
+    if ! command -v $cmd &> /dev/null; then
+        MISSING_CMDS+=($cmd)
+    fi
+done
+
+if [ ${#MISSING_CMDS[@]} -gt 0 ]; then
+    echo -e "${RED}${ICON_CROSS} Missing required commands: ${MISSING_CMDS[*]}${NC}"
+    echo -e "${YELLOW}Install required packages:${NC}"
+    echo -e "  sudo apt update"
+    echo -e "  sudo apt install -y iw wireless-tools net-tools grep"
+    exit 1
+fi
+
 # Track issues and fixes
 ISSUES=0
 FIXES=0
