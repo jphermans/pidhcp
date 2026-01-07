@@ -16,7 +16,9 @@ Turn your Raspberry Pi 5 into a full-featured Wi-Fi router with a modern web int
 - **Modern Web UI**: Clean, responsive interface built with React
 - **Secure**: Authentication and encrypted credential storage
 - **SQLite Database**: Persistent storage for settings and logs
-- **Docker Support**: Easy containerized deployment
+- **Docker Support**: Two deployment options:
+  - **Bare Metal**: Traditional system service installation
+  - **Docker Containers**: Isolated, reproducible deployment
 - **Visual Status Monitoring**: Real-time status with critical warnings for unavailable interfaces
 
 ## Architecture
@@ -93,7 +95,136 @@ The installer will automatically install all necessary packages. Here's the comp
 
 **Note:** All packages are automatically installed by the installation script. You don't need to install them manually.
 
-### Installation
+## Deployment Options
+
+Choose your deployment method:
+
+| Option | Description | Best For | Difficulty |
+|--------|-------------|----------|------------|
+| **[Docker](#docker-installation)** | Containerized deployment with isolated services | Easy updates, testing, multiple instances | ⭐ Easy |
+| **[Bare Metal](#bare-metal-installation)** | Traditional system service installation | Maximum performance, minimal overhead | ⭐⭐ Medium |
+
+### Docker Installation (Recommended)
+
+**Pros:**
+- ✅ Easy installation and updates
+- ✅ Isolated environment
+- ✅ Easy rollback
+- ✅ Consistent across systems
+- ✅ Simple backup/restore
+
+**Cons:**
+- ❌ Slight performance overhead
+- ❌ Requires Docker installed
+- ❌ More disk space
+
+**Quick Start:**
+```bash
+# Install Docker
+curl -fsSL https://get.docker.com | sh
+
+# Clone and deploy
+git clone https://github.com/jphermans/pidhcp.git
+cd pidhcp
+cp .env.example .env
+mkdir -p config data
+docker compose up -d
+```
+
+📖 **Full Docker Guide**: [DOCKER.md](DOCKER.md)
+
+### Bare Metal Installation
+
+**Pros:**
+- ✅ Maximum performance
+- ✅ No Docker overhead
+- ✅ Direct system integration
+
+**Cons:**
+- ❌ More complex installation
+- ❌ Harder to update/rollback
+- ❌ System-wide changes
+
+**Quick Start:**
+```bash
+git clone https://github.com/jphermans/pidhcp.git
+cd pidhcp
+sudo ./scripts/install.sh
+```
+
+---
+
+## Docker Installation
+
+> **Recommended for most users** - Simplified deployment with automatic configuration
+
+### Prerequisites
+
+- Docker Engine 24.0+
+- Docker Compose v2.20+
+
+### Quick Start
+
+```bash
+# 1. Install Docker (if not installed)
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
+newgrp docker  # or logout and login again
+
+# 2. Clone repository
+cd ~
+git clone https://github.com/jphermans/pidhcp.git
+cd pidhcp
+
+# 3. Configure environment
+cp .env.example .env
+nano .env  # Edit SECRET_KEY and ADMIN_PASSWORD
+
+# 4. Deploy
+docker compose up -d --build
+
+# 5. Access web UI
+# http://YOUR_PI_IP:80
+```
+
+### Configuration
+
+Create `.env` file from `.env.example`:
+```bash
+cp .env.example .env
+nano .env
+```
+
+**Minimum required changes:**
+- `SECRET_KEY`: Generate with `openssl rand -hex 32`
+- `ADMIN_PASSWORD`: Change from default
+
+### Managing Docker Containers
+
+```bash
+# View status
+docker compose ps
+
+# View logs
+docker compose logs -f
+
+# Stop services
+docker compose down
+
+# Restart services
+docker compose restart
+
+# Update to latest version
+git pull
+docker compose down
+docker compose up -d --build
+```
+
+📖 **Complete Docker Guide**: [See DOCKER.md for detailed documentation](DOCKER.md)
+
+---
+
+## Bare Metal Installation
 
 #### Step 1: Prepare Your Pi
 

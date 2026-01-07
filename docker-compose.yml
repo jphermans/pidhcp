@@ -1,27 +1,84 @@
+# Pi Router Docker Compose Configuration
+# Complete WiFi router system in containers
+
 version: '3.8'
 
 services:
-  pi-router:
-    build: .
-    container_name: pi-router
+  # Backend API Service - FastAPI backend with WiFi management
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: pi-router-backend
     restart: unless-stopped
-    network_mode: host  # Required for Wi-Fi management
-    privileged: true  # Required for network operations
+    # CRITICAL: Host network mode required for WiFi access
+    network_mode: host
+    privileged: true
+    # Grant access to wireless devices
+    devices:
+      - /dev/wlan0
+      - /dev/wlan1
     volumes:
-      # Persist configuration and database
-      - ./data/config:/etc/pi-router
-      - ./data/state:/var/lib/pi-router
-      # Mount host network configs for management
+      # Persist configuration
+      - ./config:/config
+      # Persist database and state
+      - pi-router-data:/data
+      # Host network configuration (read-only for monitoring)
       - /etc/wpa_supplicant:/host/wpa_supplicant:ro
       - /etc/hostapd:/host/hostapd:ro
       - /etc/dnsmasq.d:/host/dnsmasq.d:ro
-      - /run/systemd:/run/systemd:ro  # For systemd communication
     environment:
-      - TZ=UTC
-      - CONFIG_DIR=/etc/pi-router
-      - STATE_DIR=/var/lib/pi-router
+      - CONFIG_DIR=/config
+      - STATE_DIR=/data
+      - PYTHONUNBUFFERED=1
+      - TZ=${TZ:-UTC}
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Frontend Web UI Service - Nginx with React frontend
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: pi-router-frontend
+    restart: unless-stopped
     ports:
-      - "8080:8080"
-    labels:
-      - "com.pi-router.description=Wi-Fi Router Management"
-      - "com.pi-router.managed-by=JPHsystems"
+      - "80:80"
+      # Alternative port if 80 is in use
+      # - "8080:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    volumes:
+      # Custom nginx config (optional)
+      - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
+    environment:
+      - TZ=${TZ:-UTC}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  pi-router-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data
+
+networks:
+  default:
+    name: pi-router-network
