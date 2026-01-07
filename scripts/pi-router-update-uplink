@@ -1,0 +1,42 @@
+#!/bin/bash
+#
+# Pi Router - Helper script to update wpa_supplicant configuration
+# This script is called via sudo by the web application
+#
+
+set -e
+
+# Check arguments
+if [ $# -lt 1 ]; then
+    echo "Usage: $0 <temp_config_file>"
+    exit 1
+fi
+
+TEMP_FILE="$1"
+TARGET_FILE="/etc/wpa_supplicant/wpa_supplicant-wlan0.conf"
+
+# Validate temp file exists
+if [ ! -f "$TEMP_FILE" ]; then
+    echo "Error: Temp file not found: $TEMP_FILE"
+    exit 1
+fi
+
+# Validate temp file is readable
+if [ ! -r "$TEMP_FILE" ]; then
+    echo "Error: Cannot read temp file: $TEMP_FILE"
+    exit 1
+fi
+
+# Create backup if target exists
+if [ -f "$TARGET_FILE" ]; then
+    cp "$TARGET_FILE" "${TARGET_FILE}.backup"
+fi
+
+# Move new config to target
+mv "$TEMP_FILE" "$TARGET_FILE"
+
+# Set proper permissions
+chmod 600 "$TARGET_FILE"
+chown root:root "$TARGET_FILE"
+
+echo "wpa_supplicant configuration updated successfully"

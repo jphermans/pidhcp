@@ -1,0 +1,39 @@
+#!/bin/bash
+#
+# Pi Router - Helper script to update dnsmasq configuration
+# This script is called via sudo by the web application
+#
+
+set -e
+
+# Check arguments
+if [ $# -lt 1 ]; then
+    echo "Usage: $0 <temp_config_file>"
+    exit 1
+fi
+
+TEMP_FILE="$1"
+TARGET_FILE="/etc/dnsmasq.d/pi-router.conf"
+
+# Create directory if it doesn't exist
+mkdir -p /etc/dnsmasq.d
+
+# Validate temp file exists
+if [ ! -f "$TEMP_FILE" ]; then
+    echo "Error: Temp file not found: $TEMP_FILE"
+    exit 1
+fi
+
+# Create backup if target exists
+if [ -f "$TARGET_FILE" ]; then
+    cp "$TARGET_FILE" "${TARGET_FILE}.backup"
+fi
+
+# Move new config to target
+mv "$TEMP_FILE" "$TARGET_FILE"
+
+# Set proper permissions
+chmod 644 "$TARGET_FILE"
+chown root:root "$TARGET_FILE"
+
+echo "dnsmasq configuration updated successfully"

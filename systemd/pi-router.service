@@ -1,0 +1,32 @@
+[Unit]
+Description=Pi Router Web UI
+Documentation=https://github.com/yourusername/pi-router
+After=network.target hostapd.service dnsmasq.service
+Wants=hostapd.service dnsmasq.service
+
+[Service]
+Type=simple
+User=pi-router
+Group=pi-router
+WorkingDirectory=/opt/pi-router/backend
+Environment="PATH=/opt/pi-router/venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="CONFIG_DIR=/etc/pi-router"
+Environment="STATE_DIR=/var/lib/pi-router"
+ExecStart=/opt/pi-router/venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port 8080
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=pi-router
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/pi-router /tmp
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW
+
+[Install]
+WantedBy=multi-user.target

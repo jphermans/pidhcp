@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  pi-router:
+    build: .
+    container_name: pi-router
+    restart: unless-stopped
+    network_mode: host  # Required for Wi-Fi management
+    privileged: true  # Required for network operations
+    volumes:
+      # Persist configuration and database
+      - ./data/config:/etc/pi-router
+      - ./data/state:/var/lib/pi-router
+      # Mount host network configs for management
+      - /etc/wpa_supplicant:/host/wpa_supplicant:ro
+      - /etc/hostapd:/host/hostapd:ro
+      - /etc/dnsmasq.d:/host/dnsmasq.d:ro
+      - /run/systemd:/run/systemd:ro  # For systemd communication
+    environment:
+      - TZ=UTC
+      - CONFIG_DIR=/etc/pi-router
+      - STATE_DIR=/var/lib/pi-router
+    ports:
+      - "8080:8080"
+    labels:
+      - "com.pi-router.description=Wi-Fi Router Management"
+      - "com.pi-router.managed-by=JPHsystems"
