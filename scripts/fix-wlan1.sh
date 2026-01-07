@@ -139,6 +139,34 @@ EOF
         else
             print_info "NetworkManager is not managing wlan1 (good)"
         fi
+
+        # Also create persistent NetworkManager config file
+        if [ ! -f /etc/NetworkManager/conf.d/unmanaged.conf ]; then
+            print_step "Creating NetworkManager configuration file..."
+            mkdir -p /etc/NetworkManager/conf.d
+            cat > /etc/NetworkManager/conf.d/unmanaged.conf << 'EOF'
+[keyfile]
+# Prevent NetworkManager from managing wlan1
+unmanaged-devices=interface-name:wlan1
+EOF
+            print_success "Created NetworkManager configuration"
+            print_info "Reloading NetworkManager..."
+            systemctl reload NetworkManager 2>/dev/null || true
+        else
+            if grep -q "interface-name:wlan1" /etc/NetworkManager/conf.d/unmanaged.conf 2>/dev/null; then
+                print_info "NetworkManager config already exists (good)"
+            else
+                print_step "Updating NetworkManager configuration file..."
+                cat > /etc/NetworkManager/conf.d/unmanaged.conf << 'EOF'
+[keyfile]
+# Prevent NetworkManager from managing wlan1
+unmanaged-devices=interface-name:wlan1
+EOF
+                print_success "Updated NetworkManager configuration"
+                print_info "Reloading NetworkManager..."
+                systemctl reload NetworkManager 2>/dev/null || true
+            fi
+        fi
     else
         print_info "wlan1 not found by NetworkManager"
     fi
@@ -159,18 +187,51 @@ for conf_file in /etc/wpa_supplicant/wpa_supplicant.conf /etc/wpa_supplicant/wpa
 done
 print_info "No problematic wpa_supplicant configurations found"
 
-# Step 5: Check dhcpcd configuration
-print_header "${ICON_GEAR} Step 5: Checking dhcpcd configuration"
+# Step 5: Configure dhcpcd to deny wlan1 and set metrics
+print_header "${ICON_GEAR} Step 5: Configuring dhcpcd"
 if [ -f /etc/dhcpcd.conf ]; then
     if grep -q "denyinterfaces wlan1" /etc/dhcpcd.conf 2>/dev/null; then
         print_info "dhcpcd already configured to ignore wlan1 (good)"
     else
         print_warning "dhcpcd may try to manage wlan1"
-        print_info "Consider adding 'denyinterfaces wlan1' to /etc/dhcpcd.conf"
-        print_info "This prevents dhcpcd from interfering with hostapd"
+        print_step "Adding dhcpcd configuration to prevent wlan1 upstream..."
+
+        # Backup existing config
+        cp /etc/dhcpcd.conf /etc/dhcpcd.conf.backup-$(date +%Y%m%d-%H%M%S)
+
+        # Add configuration if not already present
+        if ! grep -q "^# Pi Router - wlan1 configuration" /etc/dhcpcd.conf 2>/dev/null; then
+            cat >> /etc/dhcpcd.conf << 'EOF'
+
+# Pi Router - wlan1 configuration
+# Prevent dhcpcd from managing wlan1 (AP interface)
+denyinterfaces wlan1
+
+# Explicitly allow wlan0 as the only managed WiFi interface
+allowinterfaces wlan0
+
+# Set routing metrics to ensure wlan0 is always preferred
+interface wlan0
+metric 100  # Lower metric = higher priority (default route)
+
+# wlan1 should never get a default route
+interface wlan1
+metric 200  # Higher metric = lower priority
+nooption routers
+EOF
+            print_success "Added dhcpcd configuration to prevent wlan1 upstream"
+        else
+            print_info "Pi Router configuration already exists in dhcpcd.conf"
+        fi
+    fi
+
+    # Verify metric configuration
+    if grep -q "interface wlan0" /etc/dhcpcd.conf 2>/dev/null && \
+       grep -q "metric 100" /etc/dhcpcd.conf 2>/dev/null; then
+        print_info "Routing metrics configured (wlan0 preferred)"
     fi
 else
-    print_info "dhcpcd.conf not found"
+    print_info "dhcpcd.conf not found - skipping dhcpcd configuration"
 fi
 
 # Step 6: Ensure hostapd is enabled and running
