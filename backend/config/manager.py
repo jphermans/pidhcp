@@ -15,7 +15,12 @@ logger = logging.getLogger(__name__)
 class ConfigManager:
     """Manages application and network configuration."""
 
-    def __init__(self, config_dir: str = "/etc/pi-router", state_dir: str = "/var/lib/pi-router"):
+    def __init__(self, config_dir: str = None, state_dir: str = None):
+        if config_dir is None:
+            config_dir = os.environ.get('CONFIG_DIR', '/config')
+        if state_dir is None:
+            state_dir = os.environ.get('STATE_DIR', '/data')
+
         self.config_dir = Path(config_dir)
         self.state_dir = Path(state_dir)
         self.config_dir.mkdir(parents=True, exist_ok=True)
