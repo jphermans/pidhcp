@@ -214,16 +214,32 @@ class Database:
             for row in rows:
                 mac, ip, hostname, first_seen, last_seen, is_online = row
 
-                # Parse timestamps
-                if isinstance(last_seen, str):
-                    last_seen_dt = datetime.fromisoformat(last_seen.replace('Z', '+00:00'))
-                else:
-                    last_seen_dt = last_seen
+                # Parse timestamps - handle both string and datetime objects
+                try:
+                    if isinstance(last_seen, str):
+                        # SQLite returns timestamps like "2026-01-07 17:24:33"
+                        if 'T' in last_seen:
+                            last_seen_dt = datetime.fromisoformat(last_seen.replace('Z', '+00:00'))
+                        else:
+                            # Parse SQLite datetime format
+                            last_seen_dt = datetime.strptime(last_seen, "%Y-%m-%d %H:%M:%S")
+                    else:
+                        last_seen_dt = last_seen
+                except Exception as e:
+                    logger.error(f"Error parsing last_seen timestamp for {mac}: {e}, value={last_seen}")
+                    continue
 
-                if isinstance(first_seen, str):
-                    first_seen_dt = datetime.fromisoformat(first_seen.replace('Z', '+00:00'))
-                else:
-                    first_seen_dt = first_seen
+                try:
+                    if isinstance(first_seen, str):
+                        if 'T' in first_seen:
+                            first_seen_dt = datetime.fromisoformat(first_seen.replace('Z', '+00:00'))
+                        else:
+                            first_seen_dt = datetime.strptime(first_seen, "%Y-%m-%d %H:%M:%S")
+                    else:
+                        first_seen_dt = first_seen
+                except Exception as e:
+                    logger.error(f"Error parsing first_seen timestamp for {mac}: {e}, value={first_seen}")
+                    first_seen_dt = last_seen_dt  # Fallback
 
                 # Determine if device is online (seen in last 5 minutes)
                 online_cutoff = datetime.now() - timedelta(minutes=5)
@@ -231,6 +247,7 @@ class Database:
 
                 # Skip if offline for too long
                 if not is_online_now and last_seen_dt < cutoff_time:
+                    logger.debug(f"Skipping device {mac} - offline too long: {last_seen_dt} < {cutoff_time}")
                     continue
 
                 # Calculate time ago string
@@ -246,6 +263,7 @@ class Database:
                     "time_ago": time_ago
                 })
 
+            logger.info(f"Returning {len(devices)} devices (out of {len(rows)} total in DB)")
             return devices
 
     def _time_ago(self, dt: datetime) -> str:
