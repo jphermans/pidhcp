@@ -505,6 +505,34 @@ network={{
         else:
             return False, f"NAT setup failed: {'; '.join(errors)}"
 
+    async def configure_wlan1_interface(self, ip_address: str = "10.42.0.1/24") -> Tuple[bool, str]:
+        """Configure wlan1 with a static IP address."""
+        try:
+            # Check if wlan1 already has the configured IP
+            success, stdout, _ = await self.run_command(["ip", "-o", "-4", "addr", "show", "wlan1"])
+            if success and ip_address.split('/')[0] in stdout:
+                return True, f"wlan1 already configured with {ip_address}"
+
+            # Configure wlan1 with static IP
+            success, _, err = await self.run_command([
+                "ip", "addr", "add", ip_address, "dev", "wlan1"
+            ])
+
+            if not success:
+                return False, f"Failed to configure wlan1 IP: {err}"
+
+            # Bring interface up if it's not already
+            success, _, err = await self.run_command(["ip", "link", "set", "wlan1", "up"])
+            if not success:
+                return False, f"Failed to bring wlan1 up: {err}"
+
+            logger.info(f"Configured wlan1 with IP {ip_address}")
+            return True, f"wlan1 configured with {ip_address}"
+
+        except Exception as e:
+            logger.error(f"Failed to configure wlan1: {e}")
+            return False, str(e)
+
     async def ensure_wlan1_ap_mode(self) -> Tuple[bool, str]:
         """Ensure wlan1 is in AP mode and not managed by wpa_supplicant."""
         issues = []

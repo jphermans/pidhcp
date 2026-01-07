@@ -79,6 +79,14 @@ async def lifespan(app: FastAPI):
 
     logger.info("Services initialized")
 
+    # Configure wlan1 interface with static IP (required for DHCP server)
+    logger.info("Configuring wlan1 interface...")
+    wlan1_success, wlan1_msg = await network_service.configure_wlan1_interface()
+    if wlan1_success:
+        logger.info(f"wlan1 configured: {wlan1_msg}")
+    else:
+        logger.warning(f"Failed to configure wlan1: {wlan1_msg}")
+
     # Setup NAT and IP forwarding on startup (required for wlan1 clients to access internet)
     logger.info("Setting up NAT and IP forwarding...")
     nat_success, nat_msg = await network_service.enable_ip_forwarding()
