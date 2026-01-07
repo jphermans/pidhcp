@@ -83,14 +83,14 @@ print_info "Installing to: ${BOLD}/opt/pi-router${NC}"
 print_info "Persistent data: ${BOLD}/var/lib/pi-router/data${NC}"
 
 # Step 1: Update system
-print_header "${ICON_PACKAGE} STEP 1/9: Updating System Packages"
+print_header "${ICON_PACKAGE} STEP 1/11: Updating System Packages"
 print_step "Updating package lists and upgrading system..."
 apt-get update -qq
 apt-get upgrade -y -qq
 print_success "System updated successfully"
 
 # Step 2: Install system dependencies
-print_header "${ICON_PACKAGE} STEP 2/9: Installing System Dependencies"
+print_header "${ICON_PACKAGE} STEP 2/11: Installing System Dependencies"
 print_step "Installing required packages..."
 echo ""
 apt-get install -y \
@@ -124,7 +124,7 @@ print_info "  • network-manager - Network management (optional)"
 print_info "  • udev - Device management (for auto-detection)"
 
 # Step 3: Configure network interfaces
-print_header "${ICON_NETWORK} STEP 3/9: Configuring Network Interfaces"
+print_header "${ICON_NETWORK} STEP 3/11: Configuring Network Interfaces"
 
 # Check if wlan1 exists
 WLAN1_EXISTS=false
@@ -167,7 +167,7 @@ if [ "$WLAN1_EXISTS" = false ]; then
 fi
 
 # Step 4: Install Python dependencies
-print_header "${ICON_GEAR} STEP 4/9: Installing Python Dependencies"
+print_header "${ICON_GEAR} STEP 4/11: Installing Python Dependencies"
 print_step "Creating Python virtual environment..."
 mkdir -p /opt/pi-router
 python3 -m venv /opt/pi-router/venv
@@ -186,7 +186,7 @@ print_info "Installed: FastAPI, Uvicorn, SQLite, JWT auth, system monitoring"
 print_info "Backup support: AWS S3 (boto3), WebDAV (requests)"
 
 # Step 5: Create directories and copy files
-print_header "${ICON_FOLDER} STEP 5/9: Creating Directories and Installing Files"
+print_header "${ICON_FOLDER} STEP 5/11: Creating Directories and Installing Files"
 print_step "Creating system user and directories..."
 
 # Create user
@@ -221,7 +221,7 @@ print_info "${GREEN}${BOLD}Persistent data: /var/lib/pi-router/data${NC}"
 print_warning "Your database and settings will survive all updates!"
 
 # Step 6: Install privilege escalation helpers
-print_header "${ICON_SECURITY} STEP 6/9: Installing Security Helpers"
+print_header "${ICON_SECURITY} STEP 6/11: Installing Security Helpers"
 print_step "Installing privilege escalation scripts..."
 
 # Copy helper scripts
@@ -265,7 +265,7 @@ chmod 440 /etc/sudoers.d/pi-router
 print_success "Security helpers installed"
 
 # Step 7: Configure IP forwarding
-print_header "${ICON_NETWORK} STEP 7/9: Configuring IP Forwarding"
+print_header "${ICON_NETWORK} STEP 7/11: Configuring IP Forwarding"
 print_step "Enabling IPv4 packet forwarding..."
 
 cat > /etc/sysctl.d/99-pi-router-forwarding.conf << 'EOF'
@@ -278,7 +278,7 @@ print_success "IP forwarding enabled"
 print_info "NAT routing is now active"
 
 # Step 8: Install systemd service
-print_header "${ICON_ROCKET} STEP 8/9: Installing Systemd Service"
+print_header "${ICON_ROCKET} STEP 8/11: Installing Systemd Service"
 print_step "Installing pi-router service..."
 
 cp "$SCRIPT_DIR/../systemd/pi-router.service" /etc/systemd/system/
@@ -289,7 +289,7 @@ print_success "Systemd service installed"
 print_info "Service will start automatically on boot"
 
 # Step 9: Enable and start services
-print_header "${ICON_ROCKET} STEP 9/9: Enabling Network Services"
+print_header "${ICON_ROCKET} STEP 9/11: Enabling Network Services"
 print_step "Setting up wlan1 auto-activation..."
 
 # Install udev rule for wlan1 detection
@@ -325,6 +325,36 @@ else
     print_warning "wlan1 not detected - hostapd will start when wlan1 is connected"
 fi
 
+# Step 10: Initialize configuration files
+print_header "${ICON_GEAR} STEP 10/11: Initializing Configuration Files"
+print_step "Initializing configuration files..."
+if [ -f "$SCRIPT_DIR/init-configs.sh" ]; then
+    "$SCRIPT_DIR/init-configs.sh" > /dev/null 2>&1
+    print_success "Configuration files initialized"
+else
+    print_warning "init-configs.sh not found - configs will be created on first run"
+fi
+
+# Step 11: Start the pi-router service
+print_header "${ICON_ROCKET} STEP 11/11: Starting Pi Router Service"
+print_step "Starting pi-router service..."
+systemctl daemon-reload
+
+# Try to start the service
+if systemctl start pi-router 2>/dev/null; then
+    sleep 2
+    if systemctl is-active --quiet pi-router; then
+        print_success "pi-router service started successfully"
+    else
+        print_warning "pi-router service failed to start - check logs with: journalctl -u pi-router -n 50"
+    fi
+else
+    print_warning "Failed to start pi-router service"
+fi
+
+# Enable service to start on boot
+systemctl enable pi-router 2>/dev/null || true
+
 echo ""
 echo -e "${GREEN}${BOLD}╔══════════════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}${BOLD}║${NC}       ${ICON_ROCKET} Installation Complete! ${GREEN}${BOLD}              ║${NC}"
@@ -333,21 +363,32 @@ echo ""
 
 echo -e "${CYAN}${BOLD}📋 Next Steps:${NC}"
 echo ""
-echo -e "${YELLOW}1. Build the frontend:${NC}"
+echo -e "${YELLOW}1. Verify the backend is running:${NC}"
+if systemctl is-active --quiet pi-router; then
+    echo -e "   ${GREEN}✓${NC} pi-router service is ${GREEN}running${NC}"
+    echo -e "   Check status: ${CYAN}sudo systemctl status pi-router${NC}"
+    echo -e "   View logs: ${CYAN}sudo journalctl -u pi-router -f${NC}"
+else
+    echo -e "   ${YELLOW}⚠${NC} Service not running - check logs"
+    echo -e "   ${CYAN}sudo journalctl -u pi-router -n 50${NC}"
+fi
+echo ""
+echo -e "${YELLOW}2. Build the frontend (for web UI):${NC}"
 echo -e "   cd ${PROJECT_ROOT}/frontend"
 echo -e "   npm install"
 echo -e "   npm run build"
 echo -e "   sudo cp -r dist/* /opt/pi-router/frontend/dist/"
-echo ""
-echo -e "${YELLOW}2. Start the service:${NC}"
-echo -e "   sudo systemctl start pi-router"
+echo -e "   sudo systemctl restart pi-router"
 echo ""
 echo -e "${YELLOW}3. Access the web UI:${NC}"
-echo -e "   http://$(hostname -I | awk '{print $1}'):8080"
+PI_IP=$(hostname -I | awk '{print $1}')
+echo -e "   ${CYAN}http://${PI_IP}:8080${NC}"
+echo -e "   Find your IP: ${CYAN}ip -4 addr show | grep inet${NC}"
 echo ""
 echo -e "${YELLOW}4. Default login:${NC}"
 echo -e "   Username: ${GREEN}admin${NC}"
 echo -e "   Password: ${GREEN}admin123${NC}"
+echo -e "   ${RED}IMPORTANT: Change password after first login!${NC}"
 echo ""
 echo -e "${YELLOW}5. Configure your Wi-Fi:${NC}"
 echo -e "   • Uplink (wlan0): Connect to existing network"

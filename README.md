@@ -108,7 +108,7 @@ sudo apt update && sudo apt upgrade -y
 ```bash
 cd ~
 git clone https://github.com/jphermans/pidhcp.git
-cd pi-router
+cd pidhcp
 ```
 
 #### Step 3: Run the Installer
@@ -116,15 +116,26 @@ cd pi-router
 The installer will:
 - Install all dependencies (hostapd, dnsmasq, nftables, Python)
 - Configure network interfaces
+- Install and configure the **backend** (FastAPI + Python)
 - Set up the database
 - Install systemd services
 - Create privilege escalation helpers
+- Initialize configuration files
+- **Start the pi-router service**
 
 ```bash
 sudo ./scripts/install.sh
 ```
 
-#### Step 4: Build the Frontend
+**About Backend vs Frontend:**
+- **Backend**: Python/FastAPI server (installed automatically by the installer)
+- **Frontend**: React web interface (requires Node.js - you build this in the next step)
+
+The installer handles everything except building the frontend, which requires Node.js/npm.
+
+#### Step 4: Build the Frontend (Optional but Recommended)
+
+The frontend provides the web interface for managing your router. If you skip this, you can still use the API directly, but the web UI will be blank.
 
 ```bash
 cd frontend
@@ -132,13 +143,24 @@ npm install
 npm run build
 cd ..
 sudo cp -r frontend/dist/* /opt/pi-router/frontend/dist/
+sudo systemctl restart pi-router
 ```
 
-#### Step 5: Start the Service
+**Note:** If you don't have Node.js installed on your Pi, you can build the frontend on another machine and copy the `dist/` folder to the Pi.
+
+#### Step 5: Verify Service is Running
 
 ```bash
-sudo systemctl start pi-router
 sudo systemctl status pi-router
+```
+
+You should see:
+- `Active: active (running)`
+- Listening on port 8080
+
+Check if port 8080 is responding:
+```bash
+curl http://localhost:8080
 ```
 
 #### Step 6: Access the Web UI
@@ -147,6 +169,11 @@ Open your browser and navigate to:
 
 ```
 http://<your-pi-ip>:8080
+```
+
+Find your Pi's IP address:
+```bash
+ip -4 addr show | grep inet
 ```
 
 Default credentials:
