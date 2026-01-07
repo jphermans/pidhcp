@@ -1,15 +1,29 @@
 """Backup API routes."""
 
 from fastapi import APIRouter, HTTPException, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel
 import logging
 
-from backend.services.backup_service import BackupService
-from backend.api.auth import get_current_user
+from services.backup_service import BackupService
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+security = HTTPBearer()
+
+
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
+    """Get the current authenticated user."""
+    from main import auth_service
+    token = credentials.credentials
+    username = auth_service.verify_token(token)
+    if username is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid authentication credentials",
+        )
+    return username
 
 
 class BackupCreate(BaseModel):
