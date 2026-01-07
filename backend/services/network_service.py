@@ -175,8 +175,10 @@ class NetworkService:
 
         for lease_file in lease_files:
             try:
+                logger.debug(f"Trying to read DHCP leases from {lease_file}")
                 async with aiofiles.open(lease_file, 'r') as f:
                     content = await f.read()
+                    logger.debug(f"Read {len(content)} bytes from {lease_file}")
                     # Parse the lease file
                     for line in content.strip().split('\n'):
                         if not line.strip():
@@ -191,12 +193,17 @@ class NetworkService:
                             })
                     # If we found leases, break
                     if leases:
+                        logger.info(f"Found {len(leases)} DHCP leases in {lease_file}")
                         break
             except FileNotFoundError:
+                logger.debug(f"Lease file not found: {lease_file}")
                 continue
             except Exception as e:
-                logger.debug(f"Could not read {lease_file}: {e}")
+                logger.error(f"Error reading {lease_file}: {e}")
                 continue
+
+        if not leases:
+            logger.warning("No DHCP leases found in any location")
 
         return leases
 

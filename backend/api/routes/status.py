@@ -80,17 +80,20 @@ async def get_devices(
     # Sync devices from DHCP leases first
     try:
         leases = await network_service.get_dhcp_leases()
+        logger.info(f"Retrieved {len(leases)} DHCP leases")
         for lease in leases:
+            logger.debug(f"Syncing device: {lease['hostname']} ({lease['mac']}) at {lease['ip']}")
             await db.update_device(
                 mac=lease["mac"],
                 ip=lease["ip"],
                 hostname=lease["hostname"]
             )
     except Exception as e:
-        logger.error(f"Error syncing devices from DHCP: {e}")
+        logger.error(f"Error syncing devices from DHCP: {e}", exc_info=True)
 
     # Get devices with 30-minute filter
     devices = await db.get_devices(offline_timeout_minutes=30)
+    logger.info(f"Returning {len(devices)} devices from database")
 
     return {"devices": devices}
 
