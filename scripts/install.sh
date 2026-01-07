@@ -132,6 +132,9 @@ fi
 
 print_step "Setting up wlan1 (Access Point) interface..."
 
+# Create interfaces.d directory if it doesn't exist
+mkdir -p /etc/network/interfaces.d/
+
 # Create wlan1 static configuration
 cat > /etc/network/interfaces.d/wlan1 << 'EOF'
 auto wlan1
@@ -141,8 +144,12 @@ iface wlan1 inet static
 EOF
 
 # Configure dhcpcd to ignore wlan1
-if ! grep -q "denyinterfaces wlan1" /etc/dhcpcd.conf 2>/dev/null; then
-    echo "denyinterfaces wlan1" >> /etc/dhcpcd.conf
+if [ -f /etc/dhcpcd.conf ]; then
+    if ! grep -q "denyinterfaces wlan1" /etc/dhcpcd.conf 2>/dev/null; then
+        echo "denyinterfaces wlan1" >> /etc/dhcpcd.conf
+    fi
+else
+    print_warning "dhcpcd.conf not found - skipping dhcpcd configuration"
 fi
 
 print_success "Network interfaces configured"
