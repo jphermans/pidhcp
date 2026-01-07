@@ -312,6 +312,65 @@ body {
   color: var(--warning);
 }
 
+/* Critical warning banner */
+.alert-critical {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.95) 0%, rgba(220, 38, 38, 0.95) 100%);
+  border: 3px solid var(--error);
+  color: white;
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.5), 0 4px 6px rgba(0, 0, 0, 0.3);
+  animation: pulse-critical 2s ease-in-out infinite;
+}
+
+@keyframes pulse-critical {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.5), 0 4px 6px rgba(0, 0, 0, 0.3);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(239, 68, 68, 0.8), 0 4px 6px rgba(0, 0, 0, 0.3);
+    transform: scale(1.01);
+  }
+}
+
+.alert-critical-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.alert-critical-icon {
+  font-size: 2rem;
+  animation: shake 0.5s ease-in-out infinite;
+}
+
+@keyframes shake {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-10deg); }
+  75% { transform: rotate(10deg); }
+}
+
+.alert-critical-message {
+  font-size: 1.125rem;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.alert-critical-link {
+  color: white;
+  text-decoration: underline;
+  font-weight: 600;
+}
+
+.alert-critical-link:hover {
+  color: #fca5a5;
+}
+
 /* Loading spinner */
 .spinner {
   width: 1.5rem;

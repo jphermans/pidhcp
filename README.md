@@ -17,6 +17,7 @@ Turn your Raspberry Pi 5 into a full-featured Wi-Fi router with a modern web int
 - **Secure**: Authentication and encrypted credential storage
 - **SQLite Database**: Persistent storage for settings and logs
 - **Docker Support**: Easy containerized deployment
+- **Visual Status Monitoring**: Real-time status with critical warnings for unavailable interfaces
 
 ## Architecture
 
@@ -51,6 +52,21 @@ Turn your Raspberry Pi 5 into a full-featured Wi-Fi router with a modern web int
 - Two Wi-Fi adapters (built-in + USB, or dual USB)
 - Internet connection for initial setup
 - SSH access or direct keyboard/monitor
+
+> **CRITICAL REQUIREMENT - Two Wi-Fi Interfaces**
+>
+> This project **requires two separate Wi-Fi interfaces** to function properly:
+> - **wlan0**: Used for uplink connection (connects to your existing Wi-Fi network)
+> - **wlan1**: Used for the Access Point (creates a new Wi-Fi network for your devices)
+>
+> You must have either:
+> - Built-in Wi-Fi + USB Wi-Fi adapter, OR
+> - Two USB Wi-Fi adapters
+>
+> **The web UI will display a prominent red warning banner when wlan1 is not available or the hostapd service is not running.** If you see this warning, check that:
+> 1. You have a second Wi-Fi adapter connected and recognized by the system
+> 2. The hostapd service is running: `sudo systemctl status hostapd`
+> 3. The wlan1 interface exists: `ip link show wlan1`
 
 ### Installation
 
@@ -200,6 +216,39 @@ port: 8080
 ```
 
 ## Troubleshooting
+
+### Critical Warning Banner in Web UI (wlan1 Not Available)
+
+If you see a **red warning banner** at the top of the Dashboard saying "CRITICAL: wlan1 Access Point Not Running", this means the system cannot detect or use the wlan1 interface. The Access Point functionality will not work.
+
+**Common causes and solutions:**
+
+1. **Missing second Wi-Fi adapter**
+   ```bash
+   # Check available wireless interfaces
+   iwconfig
+   # or
+   ip link show | grep wlan
+   ```
+   - You should see both `wlan0` and `wlan1`
+   - If you only see `wlan0`, you need to add a second Wi-Fi adapter
+
+2. **hostapd service not running**
+   ```bash
+   sudo systemctl status hostapd
+   sudo systemctl start hostapd
+   sudo systemctl enable hostapd
+   ```
+
+3. **Interface name mismatch**
+   - Some systems may use different interface names (e.g., `wlx...`)
+   - Check your actual interface names with `ip link show`
+   - You may need to configure udev rules to rename interfaces consistently
+
+4. **Wi-Fi adapter not supported by hostapd**
+   - Some USB Wi-Fi adapters don't support AP mode
+   - Check adapter compatibility with `hostapd`
+   - Look for adapters with AR9271, RT5370, or similar chipsets
 
 ### AP Not Starting
 

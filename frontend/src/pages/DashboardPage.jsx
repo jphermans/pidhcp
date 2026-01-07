@@ -104,6 +104,19 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* Critical warning when wlan1 is not available */}
+      {!networkStatus?.wlan1?.running && (
+        <div className="alert-critical">
+          <div className="alert-critical-title">
+            <span className="alert-critical-icon">⚠️</span>
+            CRITICAL: wlan1 Access Point Not Running
+          </div>
+          <p className="alert-critical-message">
+            The wlan1 interface is not available or the hostapd service is not running. This means the Access Point functionality is not working, and devices cannot connect to your router. Please check your hardware configuration and ensure you have a second Wi-Fi adapter connected. See <a href="/network" className="alert-critical-link">Network settings</a> or <a href="https://github.com/yourusername/pi-router#hardware-requirements" className="alert-critical-link" target="_blank" rel="noopener noreferrer">hardware requirements</a>.
+          </p>
+        </div>
+      )}
+
       {/* Uplink Connection Info - Dedicated Section */}
       <div className="card" style={{
         background: wlan0Connected ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(34, 197, 94, 0.05) 100%)' : 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.05) 100%)',
