@@ -24,11 +24,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Network tools
     iproute2 \
     net-tools \
+    # Firewall
+    iptables \
+    nftables \
     # Systemd services (for hostapd, dnsmasq)
     hostapd \
     dnsmasq \
-    # Firewall
-    nftables \
     # Utilities
     curl \
     && rm -rf /var/lib/apt/lists/*

@@ -252,17 +252,15 @@ server=1.0.0.1
         return """# Pi Router NAT Configuration
 table nat {
     chain postrouting {
-        type nat hook postrouting priority srcnat { policy accept; }
+        type nat hook postrouting priority srcnat; policy accept;
         oifname "wlan0" masquerade
     }
 }
 
 table inet filter {
     chain forward {
-        type filter hook forward priority filter { policy accept; }
-        # Allow forwarding from wlan1 to wlan0
+        type filter hook forward priority filter; policy accept;
         iifname "wlan1" oifname "wlan0" accept
-        # Allow established/related connections back
         ct state established,related accept
     }
 }
