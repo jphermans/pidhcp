@@ -2,10 +2,11 @@
 
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, status, Depends
+from fastapi import FastAPI, Request, Depends
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import status as http_status
 import uvicorn
 
 from config.manager import ConfigManager
@@ -120,7 +121,7 @@ app.add_middleware(
 async def global_exception_handler(request: Request, exc: Exception):
     logger.error(f"Unhandled exception: {exc}", exc_info=True)
     return JSONResponse(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={"error": "Internal server error", "detail": str(exc)}
     )
 

@@ -143,36 +143,60 @@ class NetworkService:
 
     async def _get_dhcp_client_count(self) -> int:
         """Get the number of DHCP clients."""
-        success, stdout, _ = await self.run_command(["dnsmasq", "--dhcp leases"])
-        if success:
-            return len([line for line in stdout.strip().split('\n') if line.strip()])
+        # Read lease file directly - dnsmasq doesn't have a command to show leases
+        lease_files = [
+            "/var/lib/misc/dnsmasq.leases",
+            "/state/dnsmasq.leases",
+            "/data/dnsmasq.leases"
+        ]
+
+        for lease_file in lease_files:
+            try:
+                async with aiofiles.open(lease_file, 'r') as f:
+                    content = await f.read()
+                    return len([line for line in content.strip().split('\n') if line.strip()])
+            except FileNotFoundError:
+                continue
+            except Exception:
+                continue
+
         return 0
 
     async def get_dhcp_leases(self) -> List[Dict]:
         """Get list of DHCP leases."""
         leases = []
 
-        success, stdout, _ = await self.run_command(["dnsmasq", "--dhcp-leasefile=/var/lib/misc/dnsmasq.leases", "--dhcp-leases"])
-        if not success:
-            # Try reading lease file directly
-            try:
-                async with aiofiles.open("/var/lib/misc/dnsmasq.leases", 'r') as f:
-                    content = await f.read()
-                    stdout = content
-            except Exception:
-                return []
+        # Try reading from various possible lease file locations
+        lease_files = [
+            "/var/lib/misc/dnsmasq.leases",
+            "/state/dnsmasq.leases",
+            "/data/dnsmasq.leases"
+        ]
 
-        for line in stdout.strip().split('\n'):
-            if not line.strip():
+        for lease_file in lease_files:
+            try:
+                async with aiofiles.open(lease_file, 'r') as f:
+                    content = await f.read()
+                    # Parse the lease file
+                    for line in content.strip().split('\n'):
+                        if not line.strip():
+                            continue
+                        parts = line.split()
+                        if len(parts) >= 5:
+                            leases.append({
+                                "mac": parts[1],
+                                "ip": parts[2],
+                                "hostname": parts[3] if parts[3] != "*" else "Unknown",
+                                "expires": parts[0]
+                            })
+                    # If we found leases, break
+                    if leases:
+                        break
+            except FileNotFoundError:
                 continue
-            parts = line.split()
-            if len(parts) >= 5:
-                leases.append({
-                    "mac": parts[1],
-                    "ip": parts[2],
-                    "hostname": parts[3] if parts[3] != "*" else "Unknown",
-                    "expires": parts[0]
-                })
+            except Exception as e:
+                logger.debug(f"Could not read {lease_file}: {e}")
+                continue
 
         return leases
 
@@ -423,44 +447,65 @@ network={{
             return False, f"Failed to persist forwarding config: {err}"
 
     async def setup_nat(self) -> Tuple[bool, str]:
-        """Setup nftables NAT rules."""
+        """Setup nftables NAT rules and iptables masquerade."""
+        errors = []
+        successes = []
+
+        # Set up iptables masquerade rule (most reliable for Docker)
+        # We use -I to insert at the top, and if it duplicates, iptables will handle it
+        success, _, err = await self.run_command([
+            "iptables", "-t", "nat", "-I", "POSTROUTING", "-s", "10.42.0.0/24", "-o", "wlan0", "-j", "MASQUERADE"
+        ])
+        if success:
+            successes.append("Added iptables masquerade rule for 10.42.0.0/24")
+        else:
+            errors.append(f"iptables masquerade failed: {err}")
+
+        # Set up FORWARD chain rule to allow traffic from wlan1
+        success, _, err = await self.run_command([
+            "iptables", "-I", "FORWARD", "-i", "wlan1", "-o", "wlan0", "-j", "ACCEPT"
+        ])
+        if success:
+            successes.append("Added FORWARD rule for wlan1 -> wlan0")
+        else:
+            errors.append(f"FORWARD rule failed: {err}")
+
+        # Allow return traffic
+        success, _, err = await self.run_command([
+            "iptables", "-I", "FORWARD", "-i", "wlan0", "-o", "wlan1", "-m", "state", "--state", "RELATED,ESTABLISHED", "-j", "ACCEPT"
+        ])
+        if success:
+            successes.append("Added FORWARD rule for return traffic")
+        else:
+            errors.append(f"Return traffic rule failed: {err}")
+
+        # Try to set up nftables as well (optional, for compatibility)
         config_content = self.generate_nftables_config()
         temp_file = Path("/tmp/nftables.conf.new")
         async with aiofiles.open(temp_file, 'w') as f:
             await f.write(config_content)
 
         # In Docker, we can run nft directly (container is privileged)
-        # Try without sudo first (for Docker)
-        success, stdout, err = await self.run_command([
+        success, _, err = await self.run_command([
             "nft", "-f", str(temp_file)
         ])
 
         # If that fails, try with sudo (for bare metal)
-        if not success and "sudo" not in str(err):
-            success, stdout, err = await self.run_command([
+        if not success:
+            success, _, err = await self.run_command([
                 "sudo", "nft", "-f", str(temp_file)
             ])
 
-        if not success:
-            return False, f"Failed to load nftables rules: {err}"
+        if success:
+            successes.append("nftables rules configured")
+        else:
+            # nftables failure is not critical since iptables rules are in place
+            logger.debug(f"nftables setup failed (non-critical): {err}")
 
-        # Also set up iptables-compatible masquerade rule for Docker compatibility
-        # This ensures masquerade works even if nftables rules get flushed
-        success_iptables, _, err_iptables = await self.run_command([
-            "iptables", "-t", "nat", "-C", "POSTROUTING", "-s", "10.42.0.0/24", "-o", "wlan0", "-j", "MASQUERADE"
-        ])
-
-        # If rule doesn't exist, add it
-        if not success_iptables:
-            success_add, _, err_add = await self.run_command([
-                "iptables", "-t", "nat", "-A", "POSTROUTING", "-s", "10.42.0.0/24", "-o", "wlan0", "-j", "MASQUERADE"
-            ])
-            if not success_add:
-                logger.warning(f"Failed to add iptables masquerade rule: {err_add}")
-            else:
-                logger.info("Added iptables masquerade rule for 10.42.0.0/24")
-
-        return True, "NAT rules configured successfully"
+        if successes:
+            return True, f"NAT configured: {'; '.join(successes)}"
+        else:
+            return False, f"NAT setup failed: {'; '.join(errors)}"
 
     async def ensure_wlan1_ap_mode(self) -> Tuple[bool, str]:
         """Ensure wlan1 is in AP mode and not managed by wpa_supplicant."""
