@@ -25,6 +25,8 @@ services:
       - /etc/wpa_supplicant:/host/wpa_supplicant:ro
       - /etc/hostapd:/host/hostapd:ro
       - /etc/dnsmasq.d:/host/dnsmasq.d:ro
+      # DHCP leases file (read-only for monitoring connected devices)
+      - /var/lib/misc/dnsmasq.leases:/var/lib/misc/dnsmasq.leases:ro
     environment:
       - CONFIG_DIR=/config
       - STATE_DIR=/data
