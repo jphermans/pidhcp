@@ -110,9 +110,13 @@ class NetworkService:
             "clients": 0
         }
 
-        # Check if hostapd is running
-        success, stdout, _ = await self.run_command(["systemctl", "is-active", "hostapd"])
-        status["running"] = success
+        # Check if wlan1 is in Master (AP) mode using iwconfig
+        success, stdout, _ = await self.run_command(["iwconfig", "wlan1"])
+        if success and "Mode:Master" in stdout:
+            status["running"] = True
+        else:
+            # Not in Master mode, return early
+            return status
 
         # Get AP SSID from hostapd config
         if Path(self.HOSTAPD_CONF).exists():
