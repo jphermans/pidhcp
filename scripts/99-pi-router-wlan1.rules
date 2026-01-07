@@ -1,0 +1,6 @@
+# Pi Router - Auto-initialize wlan1 when detected
+# This rule triggers when wlan1 interface is added (e.g., USB WiFi adapter plugged in)
+ACTION=="add", SUBSYSTEM=="net", KERNELS=="wlan1", RUN+="/usr/local/sbin/pi-router-init-wlan1"
+
+# Prevent NetworkManager from managing wlan1
+ACTION=="add", SUBSYSTEM=="net", KERNELS=="wlan1", ENV{NM_UNMANAGED}="1"

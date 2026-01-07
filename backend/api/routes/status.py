@@ -106,3 +106,17 @@ async def get_system_status(_current_user: str = Depends(get_current_user)):
             "wpa_supplicant": wpa_status
         }
     }
+
+
+@router.get("/interface-conflicts")
+async def get_interface_conflicts(_current_user: str = Depends(get_current_user)):
+    """Check for interface configuration conflicts."""
+    conflicts = await network_service.get_interface_conflicts()
+    return {"conflicts": conflicts}
+
+
+@router.post("/fix-wlan1")
+async def fix_wlan1_ap_mode(_current_user: str = Depends(get_current_user)):
+    """Fix wlan1 to ensure it's in AP mode and not managed by wpa_supplicant."""
+    success, message = await network_service.ensure_wlan1_ap_mode()
+    return {"success": success, "message": message}

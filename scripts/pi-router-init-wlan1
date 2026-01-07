@@ -1,0 +1,57 @@
+#!/bin/bash
+#
+# Initialize wlan1 when it appears
+# This script is called by systemd when wlan1 is detected
+#
+
+# Log function
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | logger -t pi-router-wlan1
+}
+
+log "Waiting for wlan1 interface..."
+
+# Wait up to 30 seconds for wlan1 to appear
+for i in {1..30}; do
+    if ip link show wlan1 >/dev/null 2>&1; then
+        log "wlan1 detected!"
+        break
+    fi
+    if [ $i -eq 30 ]; then
+        log "wlan1 not detected after 30 seconds, will retry when hardware is added"
+        exit 0
+    fi
+    sleep 1
+done
+
+# Give the interface a moment to stabilize
+sleep 1
+
+# Ensure wlan1 is up
+ip link set wlan1 up 2>/dev/null || true
+
+# Disable any wpa_supplicant on wlan1
+if systemctl is-active --quiet wpa_supplicant@wlan1 2>/dev/null; then
+    log "Stopping wpa_supplicant@wlan1"
+    systemctl stop wpa_supplicant@wlan1 2>/dev/null || true
+    systemctl disable wpa_supplicant@wlan1 2>/dev/null || true
+fi
+
+# Configure wlan1 with static IP if not already configured
+if ! ip addr show wlan1 | grep -q "10.42.0.1"; then
+    log "Configuring wlan1 with static IP 10.42.0.1"
+    ip addr add 10.42.0.1/24 dev wlan1 2>/dev/null || true
+fi
+
+# Ensure hostapd is enabled and running
+log "Starting hostapd service"
+systemctl enable hostapd 2>/dev/null || true
+systemctl start hostapd 2>/dev/null || true
+
+# Ensure dnsmasq is running
+if systemctl is-enabled dnsmasq >/dev/null 2>&1; then
+    log "Starting dnsmasq service"
+    systemctl start dnsmasq 2>/dev/null || true
+fi
+
+log "wlan1 initialization complete"

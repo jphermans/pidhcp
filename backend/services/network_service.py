@@ -440,3 +440,156 @@ network={{
             return True, "NAT rules configured successfully"
         else:
             return False, f"Failed to save nftables config: {err}"
+
+    async def ensure_wlan1_ap_mode(self) -> Tuple[bool, str]:
+        """Ensure wlan1 is in AP mode and not managed by wpa_supplicant."""
+        issues = []
+        fixes = []
+
+        # Check if wpa_supplicant is running on wlan1
+        success, _, _ = await self.run_command([
+            "systemctl", "is-active", "wpa_supplicant@wlan1"
+        ])
+
+        if success:
+            issues.append("wpa_supplicant@wlan1 is running (should be disabled)")
+            # Disable and stop wpa_supplicant on wlan1
+            success, _, err = await self.run_command([
+                "sudo", "systemctl", "disable", "wpa_supplicant@wlan1"
+            ])
+            if success:
+                fixes.append("Disabled wpa_supplicant@wlan1")
+            else:
+                return False, f"Failed to disable wpa_supplicant@wlan1: {err}"
+
+            success, _, err = await self.run_command([
+                "sudo", "systemctl", "stop", "wpa_supplicant@wlan1"
+            ])
+            if success:
+                fixes.append("Stopped wpa_supplicant@wlan1")
+            else:
+                return False, f"Failed to stop wpa_supplicant@wlan1: {err}"
+
+        # Check if NetworkManager is managing wlan1
+        success, stdout, _ = await self.run_command([
+            "nmcli", "device", "show", "wlan1"
+        ])
+
+        if success:
+            # Check if it's managed
+            if "managed: true" in stdout.lower() or "managed" in stdout.lower():
+                issues.append("NetworkManager is managing wlan1")
+                # Create udev rule to unmanage wlan1
+                udev_content = """# Prevent NetworkManager from managing wlan1
+ACTION=="add", SUBSYSTEM=="net", DRIVERS=="?*", ATTR{address}=="*", KERNELS=="wlan1", ENV{NM_UNMANAGED}="1"
+"""
+                temp_file = Path("/tmp/90-nm-unmanage-wlan1.rules")
+                async with aiofiles.open(temp_file, 'w') as f:
+                    await f.write(udev_content)
+
+                success, _, err = await self.run_command([
+                    "sudo", "mv", str(temp_file), "/etc/udev/rules.d/90-nm-unmanage-wlan1.rules"
+                ])
+                if success:
+                    fixes.append("Created udev rule to unmanage wlan1")
+                else:
+                    return False, f"Failed to create udev rule: {err}"
+
+                # Reload udev rules
+                await self.run_command(["sudo", "udevadm", "control", "--reload-rules"])
+                fixes.append("Reloaded udev rules")
+
+        # Check for wpa_supplicant.conf files that might include wlan1
+        for conf_path in [
+            "/etc/wpa_supplicant/wpa_supplicant.conf",
+            "/etc/wpa_supplicant/wpa_supplicant-wlan1.conf"
+        ]:
+            if Path(conf_path).exists():
+                # Check if wlan1 is mentioned
+                try:
+                    async with aiofiles.open(conf_path, 'r') as f:
+                        content = await f.read()
+                        if "wlan1" in content or "interface=wlan1" in content:
+                            issues.append(f"wlan1 configured in {conf_path}")
+                            fixes.append(f"Review {conf_path} - ensure wlan1 is not configured")
+                except Exception:
+                    pass
+
+        # Ensure hostapd is enabled
+        success, _, _ = await self.run_command([
+            "systemctl", "is-enabled", "hostapd"
+        ])
+
+        if not success:
+            issues.append("hostapd is not enabled")
+            success, _, err = await self.run_command([
+                "sudo", "systemctl", "enable", "hostapd"
+            ])
+            if success:
+                fixes.append("Enabled hostapd service")
+            else:
+                return False, f"Failed to enable hostapd: {err}"
+
+        # Restart hostapd to ensure it takes control of wlan1
+        success, _, err = await self.run_command([
+            "sudo", "systemctl", "restart", "hostapd"
+        ])
+
+        if success:
+            fixes.append("Restarted hostapd")
+        else:
+            return False, f"Failed to restart hostapd: {err}"
+
+        if issues:
+            return True, f"Fixed {len(issues)} issue(s): {'; '.join(issues)}. Fixes: {'; '.join(fixes)}"
+        else:
+            return True, "wlan1 is correctly configured for AP mode"
+
+    async def get_interface_conflicts(self) -> Dict:
+        """Check for interface configuration conflicts."""
+        conflicts = {
+            "wlan1_as_client": False,
+            "wpa_supplicant_on_wlan1": False,
+            "networkmanager_managing_wlan1": False,
+            "hostapd_running": False,
+            "warnings": [],
+            "recommendations": []
+        }
+
+        # Check if wpa_supplicant is running on wlan1
+        success, _, _ = await self.run_command([
+            "systemctl", "is-active", "wpa_supplicant@wlan1"
+        ])
+        conflicts["wpa_supplicant_on_wlan1"] = success
+        if success:
+            conflicts["warnings"].append("wpa_supplicant@wlan1 is running - this will prevent AP mode")
+            conflicts["recommendations"].append("Disable: sudo systemctl disable --now wpa_supplicant@wlan1")
+
+        # Check NetworkManager
+        success, stdout, _ = await self.run_command([
+            "nmcli", "device", "show", "wlan1"
+        ], timeout=5)
+        if success and ("managed: true" in stdout.lower() or "managed" in stdout.lower()):
+            conflicts["networkmanager_managing_wlan1"] = True
+            conflicts["warnings"].append("NetworkManager is managing wlan1")
+            conflicts["recommendations"].append("Add udev rule to unmanage wlan1")
+
+        # Check hostapd status
+        success, _, _ = await self.run_command([
+            "systemctl", "is-active", "hostapd"
+        ])
+        conflicts["hostapd_running"] = success
+        if not success:
+            conflicts["warnings"].append("hostapd is not running")
+            conflicts["recommendations"].append("Enable: sudo systemctl enable --now hostapd")
+
+        # Check if wlan1 is in client mode (has an IP from uplink)
+        success, stdout, _ = await self.run_command(["iwconfig", "wlan1"])
+        if success:
+            # If it shows ESSID and not in master mode, it's likely in client mode
+            if "ESSID:" in stdout and "Mode:Master" not in stdout:
+                conflicts["wlan1_as_client"] = True
+                conflicts["warnings"].append("wlan1 appears to be in client mode")
+                conflicts["recommendations"].append("Run interface cleanup to restore AP mode")
+
+        return conflicts

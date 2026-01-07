@@ -119,6 +119,17 @@ print_info "  • wpa_supplicant - Wi-Fi client"
 
 # Step 3: Configure network interfaces
 print_header "${ICON_NETWORK} STEP 3/9: Configuring Network Interfaces"
+
+# Check if wlan1 exists
+WLAN1_EXISTS=false
+if ip link show wlan1 >/dev/null 2>&1; then
+    WLAN1_EXISTS=true
+    print_info "wlan1 detected - will configure as Access Point"
+else
+    print_warning "wlan1 not detected - installation will continue"
+    print_info "AP will activate automatically when wlan1 is connected"
+fi
+
 print_step "Setting up wlan1 (Access Point) interface..."
 
 # Create wlan1 static configuration
@@ -136,8 +147,11 @@ fi
 
 print_success "Network interfaces configured"
 echo ""
-print_info "wlan0 - Ulink connection (client mode)"
+print_info "wlan0 - Uplink connection (client mode)"
 print_info "wlan1 - Access Point (10.42.0.1/24)"
+if [ "$WLAN1_EXISTS" = false ]; then
+    print_warning "wlan1 not present - will auto-configure when connected"
+fi
 
 # Step 4: Install Python dependencies
 print_header "${ICON_GEAR} STEP 4/9: Installing Python Dependencies"
@@ -202,6 +216,7 @@ cp "$SCRIPT_DIR/pi-router-update-dhcp" /usr/local/sbin/
 cp "$SCRIPT_DIR/pi-router-install-sysctl" /usr/local/sbin/
 cp "$SCRIPT_DIR/pi-router-save-nftables" /usr/local/sbin/
 cp "$SCRIPT_DIR/pi-router-service-control" /usr/local/sbin/
+cp "$SCRIPT_DIR/pi-router-init-wlan1" /usr/local/sbin/
 
 chmod +x /usr/local/sbin/pi-router-*
 
@@ -260,6 +275,25 @@ print_info "Service will start automatically on boot"
 
 # Step 9: Enable and start services
 print_header "${ICON_ROCKET} STEP 9/9: Enabling Network Services"
+print_step "Setting up wlan1 auto-activation..."
+
+# Install udev rule for wlan1 detection
+if [ -f "$SCRIPT_DIR/99-pi-router-wlan1.rules" ]; then
+    cp "$SCRIPT_DIR/99-pi-router-wlan1.rules" /etc/udev/rules.d/
+    udevadm control --reload-rules
+    print_success "Udev rule installed - wlan1 will auto-activate when connected"
+else
+    print_warning "Udev rule file not found, skipping..."
+fi
+
+# Install systemd service that waits for wlan1
+if [ -f "$SCRIPT_DIR/../systemd/pi-router-wait-wlan1.service" ]; then
+    cp "$SCRIPT_DIR/../systemd/pi-router-wait-wlan1.service" /etc/systemd/system/
+    systemctl daemon-reload
+    systemctl enable pi-router-wait-wlan1.service
+    print_success "Auto-activation service installed"
+fi
+
 print_step "Enabling hostapd and dnsmasq..."
 
 # Unmask hostapd
@@ -269,7 +303,12 @@ systemctl enable hostapd
 # Enable dnsmasq
 systemctl enable dnsmasq
 
-print_success "Network services enabled"
+# Only start hostapd if wlan1 exists
+if [ "$WLAN1_EXISTS" = true ]; then
+    print_success "Network services enabled (wlan1 present - hostapd will start)"
+else
+    print_warning "wlan1 not detected - hostapd will start when wlan1 is connected"
+fi
 
 echo ""
 echo -e "${GREEN}${BOLD}╔══════════════════════════════════════════════════╗${NC}"
@@ -299,6 +338,16 @@ echo -e "${YELLOW}5. Configure your Wi-Fi:${NC}"
 echo -e "   • Uplink (wlan0): Connect to existing network"
 echo -e "   • Access Point (wlan1): Create your own Wi-Fi"
 echo ""
+if [ "$WLAN1_EXISTS" = false ]; then
+    echo -e "${GREEN}${BOLD}🔌 wlan1 Auto-Activation:${NC}"
+    echo -e "   ${BOLD}wlan1 was not detected during installation.${NC}"
+    echo -e "   The system is configured to automatically activate the AP"
+    echo -e "   when you connect the wlan1 WiFi adapter:"
+    echo -e "   • Just plug in your USB WiFi adapter"
+    echo -e "   • The AP will start automatically (within 5-10 seconds)"
+    echo -e "   • Check status: ${CYAN}sudo systemctl status hostapd${NC}"
+    echo ""
+fi
 echo -e "${CYAN}${BOLD}📂 Important Locations:${NC}"
 echo -e "   • Application: ${BOLD}/opt/pi-router${NC}"
 echo -e "   • ${GREEN}${BOLD}Persistent data: /var/lib/pi-router/data${NC}"
@@ -307,6 +356,11 @@ echo ""
 echo -e "${CYAN}${BOLD}🔄 GitHub Sync:${NC}"
 echo -e "   • Pull updates: ${BOLD}./scripts/sync-repo.sh${NC}"
 echo -e "   • Your data is safe in /var/lib/pi-router/data"
+echo ""
+echo -e "${CYAN}${BOLD}🔧 Troubleshooting:${NC}"
+echo -e "   • If wlan1 connects to your home network instead of being an AP:"
+echo -e "   - Run: ${BOLD}sudo ./scripts/fix-wlan1.sh${NC}"
+echo -e "   - This will disable wpa_supplicant on wlan1 and restore AP mode"
 echo ""
 print_warning "You may need to configure wlan0 manually first"
 print_info "Use: sudo raspi-config → Localisation Options → Wireless LAN"

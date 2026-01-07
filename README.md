@@ -217,6 +217,69 @@ port: 8080
 
 ## Troubleshooting
 
+### wlan1 Connecting to Home Network Instead of Being an AP
+
+**Symptom:** wlan1 connects to your existing Wi-Fi network instead of creating its own Access Point.
+
+**Cause:** This happens when wpa_supplicant or NetworkManager is managing wlan1 as a client interface instead of letting hostapd manage it as an Access Point.
+
+**Quick Fix:**
+
+```bash
+sudo ./scripts/fix-wlan1.sh
+```
+
+This script will:
+- Disable wpa_supplicant@wlan1 service
+- Configure NetworkManager to ignore wlan1
+- Ensure hostapd is running
+- Restart services to restore AP mode
+
+**Via Web UI:**
+1. Go to Settings tab
+2. Click "Check Interface Conflicts" to see issues
+3. Click "Fix wlan1 AP Mode" to automatically correct problems
+
+**Manual Fix:**
+```bash
+# Disable wpa_supplicant on wlan1
+sudo systemctl stop wpa_supplicant@wlan1
+sudo systemctl disable wpa_supplicant@wlan1
+
+# Restart hostapd
+sudo systemctl restart hostapd
+
+# Verify it's in Master mode
+sudo iwconfig wlan1
+# Should show: Mode:Master
+```
+
+### Installation Without wlan1 (Auto-Activation Feature)
+
+**New Feature:** The installer now works even if wlan1 is not connected during installation.
+
+**What happens:**
+1. Installation completes successfully
+2. System installs udev rules and systemd services
+3. When you plug in wlan1 USB WiFi adapter, the AP automatically starts
+
+**How it works:**
+- Udev rule detects when wlan1 is added
+- Automatically runs initialization script
+- Disables wpa_supplicant on wlan1
+- Configures static IP (10.42.0.1)
+- Starts hostapd and dnsmasq
+
+**To manually trigger:**
+```bash
+sudo /usr/local/sbin/pi-router-init-wlan1
+```
+
+**Check auto-activation service:**
+```bash
+sudo systemctl status pi-router-wait-wlan1
+```
+
 ### Critical Warning Banner in Web UI (wlan1 Not Available)
 
 If you see a **red warning banner** at the top of the Dashboard saying "CRITICAL: wlan1 Access Point Not Running", this means the system cannot detect or use the wlan1 interface. The Access Point functionality will not work.
