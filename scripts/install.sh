@@ -210,7 +210,9 @@ cp -r "$PROJECT_ROOT/backend/"* /opt/pi-router/backend/
 
 # Set permissions
 chown -R pi-router:pi-router /var/lib/pi-router
+chown -R pi-router:pi-router /etc/pi-router
 chmod 755 /opt/pi-router
+chmod 755 /etc/pi-router
 
 print_success "Files installed"
 echo ""
