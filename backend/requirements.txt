@@ -9,3 +9,6 @@ aiofiles==24.1.0
 psutil==6.1.0
 pyyaml==6.0.2
 aiosqlite==0.20.0
+aiohttp==3.11.10
+boto3==1.35.62
+requests==2.32.3
