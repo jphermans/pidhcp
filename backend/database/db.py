@@ -172,26 +172,30 @@ class Database:
     # Device tracking - new and improved
     async def update_device(self, mac: str, ip: str = None, hostname: str = None) -> None:
         """Update or insert a device (called when device is seen/active)."""
-        async with aiosqlite.connect(self.db_path) as db:
-            # Check if device exists
-            async with db.execute("SELECT mac FROM devices WHERE mac = ?", (mac,)) as cursor:
-                exists = await cursor.fetchone()
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                # Check if device exists
+                async with db.execute("SELECT mac FROM devices WHERE mac = ?", (mac,)) as cursor:
+                    exists = await cursor.fetchone()
 
-            if exists:
-                # Update existing device
-                await db.execute("""
-                    UPDATE devices
-                    SET ip = ?, hostname = ?, last_seen = CURRENT_TIMESTAMP, is_online = 1
-                    WHERE mac = ?
-                """, (ip, hostname or "Unknown", mac))
-            else:
-                # Insert new device
-                await db.execute("""
-                    INSERT INTO devices (mac, ip, hostname, first_seen, last_seen, is_online)
-                    VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1)
-                """, (mac, ip, hostname or "Unknown"))
-            await db.commit()
-            logger.debug(f"Device updated: {mac}")
+                if exists:
+                    # Update existing device
+                    await db.execute("""
+                        UPDATE devices
+                        SET ip = ?, hostname = ?, last_seen = CURRENT_TIMESTAMP, is_online = 1
+                        WHERE mac = ?
+                    """, (ip, hostname or "Unknown", mac))
+                    logger.info(f"Updated device: {mac} ({hostname or 'Unknown'}) at {ip}")
+                else:
+                    # Insert new device
+                    await db.execute("""
+                        INSERT INTO devices (mac, ip, hostname, first_seen, last_seen, is_online)
+                        VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1)
+                    """, (mac, ip, hostname or "Unknown"))
+                    logger.info(f"Added new device: {mac} ({hostname or 'Unknown'}) at {ip}")
+                await db.commit()
+        except Exception as e:
+            logger.error(f"Failed to update device {mac}: {e}", exc_info=True)
 
     async def get_devices(self, offline_timeout_minutes: int = 30) -> List[Dict]:
         """Get all devices with online status, filtering out old offline devices."""
