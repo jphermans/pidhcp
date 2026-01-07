@@ -64,7 +64,49 @@ echo -e "${GREEN}${BOLD}║${NC}     ${YELLOW}for Raspberry Pi 5${NC}           
 echo -e "${GREEN}${BOLD}╚══════════════════════════════════════════════════╝${NC}"
 echo ""
 
-# Check if running as root
+# Ask for deployment mode
+echo ""
+echo -e "${CYAN}${BOLD}Select Deployment Mode:${NC}"
+echo ""
+echo "  1) Docker (Recommended)"
+echo "     • Easy installation and updates"
+echo "     • Isolated environment"
+echo "     • Requires Docker"
+echo ""
+echo "  2) Bare Metal (Traditional)"
+echo "     • Maximum performance"
+echo "     • Direct system integration"
+echo "     • More complex setup"
+echo ""
+read -p "Choose deployment mode [1/2] (default: 1): " DEPLOY_MODE
+DEPLOY_MODE=${DEPLOY_MODE:-1}
+
+if [ "$DEPLOY_MODE" = "2" ]; then
+    # Bare Metal installation - continue with this script
+    echo ""
+    echo -e "${CYAN}Proceeding with Bare Metal installation...${NC}"
+    echo ""
+else
+    # Docker installation
+    echo ""
+    echo -e "${CYAN}Redirecting to Docker deployment...${NC}"
+    echo ""
+
+    # Check if running as root
+    if [ "$EUID" -ne 0 ]; then
+        # Docker doesn't need root for deployment (if user is in docker group)
+        exec "$(dirname "$0")/docker-deploy.sh"
+    else
+        # Running as root - switch to non-root if possible
+        if [ -n "$SUDO_USER" ]; then
+            exec su - "$SUDO_USER" -c "cd $(pwd) && $(dirname "$0")/docker-deploy.sh"
+        else
+            exec "$(dirname "$0")/docker-deploy.sh"
+        fi
+    fi
+fi
+
+# Check if running as root (for Bare Metal)
 if [ "$EUID" -ne 0 ]; then
     echo -e "${RED}${ICON_CROSS} Please run this script as root${NC}"
     echo -e "${YELLOW}  Run: sudo ./scripts/install.sh${NC}"
