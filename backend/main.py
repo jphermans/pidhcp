@@ -72,7 +72,8 @@ async def lifespan(app: FastAPI):
     app_config = config_manager.load_app_config()
 
     auth_service = AuthService(secret_key=app_config.secret_key)
-    network_service = NetworkService(config_dir=app_config.config_dir)
+    # Don't pass config_dir - let NetworkService use environment variable
+    network_service = NetworkService()
     system_service = SystemService()
 
     logger.info("Services initialized")
