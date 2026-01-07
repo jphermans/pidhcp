@@ -27,6 +27,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Firewall
     iptables \
     nftables \
+    # System utilities
+    procps \
     # Systemd services (for hostapd, dnsmasq)
     hostapd \
     dnsmasq \
